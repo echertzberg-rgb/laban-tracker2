@@ -461,10 +461,21 @@ function DogForm({ initial, onSave, onCancel }) {
   );
 }
 
-function ShowForm({ initial, onSave, onCancel }) {
+function defaultClassFor(dog) {
+  if (!dog || !dog.birthDate) return 'Åpen';
+  const today = new Date().toLocaleDateString('sv-SE');
+  const months = monthsAt(dog.birthDate, today);
+  if (months < 6) return CLASSES[0];
+  if (months < 9) return CLASSES[1];
+  if (months < 15) return CLASSES[2];
+  if (months < 24) return CLASSES[3];
+  return CLASSES[4];
+}
+
+function ShowForm({ dog, initial, onSave, onCancel }) {
   const [form, setForm] = useState(
     initial || {
-      date: '', showName: '', location: '', country: 'Norway', dogClass: 'Open',
+      date: '', showName: '', location: '', country: 'Norway', dogClass: defaultClassFor(dog),
       status: 'upcoming', judge: '', placement: '-', breedPlacement: '-', bigPlacement: '-', quality: '', ckQuality: false, hederspris: false, points: '',
       certs: { ...DEFAULT_CERTS }, notes: '',
     }
@@ -1504,7 +1515,7 @@ export default function App() {
       )}
       {modal && modal.type === 'show' && (
         <Modal title={modal.title} onClose={closeModal}>
-          <ShowForm initial={modal.data} onSave={saveShow} onCancel={closeModal} />
+          <ShowForm dog={activeDog} initial={modal.data} onSave={saveShow} onCancel={closeModal} />
         </Modal>
       )}
       {modal && modal.type === 'goal' && (
