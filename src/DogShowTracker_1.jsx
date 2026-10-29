@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Check, Trophy, Pencil, Trash2, MapPin } from 'lucide-react';
+import { Plus, X, Check, Trophy, Pencil, Trash2, MapPin, House, CalendarDays, Target, PawPrint, ChevronRight } from 'lucide-react';
 
 const STORAGE_KEYS = {
   dogs: 'dogshow_dogs',
@@ -101,6 +101,19 @@ const CSS = `
 .dst-chip{ display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.75rem; border-radius:999px; border:1px solid var(--line-dark); font-size:0.8rem; cursor:pointer; background:#fff; color:var(--ink); font-weight:600; font-family:'Work Sans',sans-serif; text-align:left; }
 .dst-chip.checked{ background:var(--brass-soft); border-color:var(--brass); color:var(--brass-ink); }
 .dst-select-dark{ background:var(--ink-bg-2); color:var(--cream); border:1px solid var(--line); border-radius:10px; padding:0.45rem 0.6rem; font-family:'Work Sans',sans-serif; font-size:0.85rem; }
+.dst-panel{ background:var(--ink-bg-2); border-radius:16px; padding:1rem; }
+.dst-panel-label{ font-size:0.75rem; color:var(--cream-soft); }
+.dst-avatar{ width:64px; height:64px; border-radius:50%; overflow:hidden; background:var(--brass); color:var(--ink-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; border:2px solid var(--brass); }
+.dst-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+.dst-badge{ display:inline-block; font-size:0.72rem; font-weight:600; padding:0.2rem 0.6rem; border-radius:8px; background:rgba(242,236,221,0.12); color:var(--cream); }
+.dst-badge.brass{ background:rgba(201,162,39,0.22); color:#E3C45A; }
+.dst-bar{ height:6px; background:rgba(242,236,221,0.16); border-radius:3px; overflow:hidden; }
+.dst-bar > div{ height:100%; background:var(--brass); border-radius:3px; transition:width 0.3s; }
+.dst-link{ background:none; border:none; color:var(--brass); font-weight:600; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.2rem; padding:0; font-family:'Work Sans',sans-serif; }
+.dst-nav{ position:fixed; left:0; right:0; bottom:0; background:var(--ink-bg); border-top:1px solid var(--line); z-index:20; padding-bottom:env(safe-area-inset-bottom); }
+.dst-nav-inner{ max-width:640px; margin:0 auto; display:flex; justify-content:space-around; padding:0.4rem 0.5rem; }
+.dst-nav button{ background:none; border:none; color:var(--cream-soft); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:0.7rem; font-weight:600; padding:0.35rem 0.9rem; cursor:pointer; font-family:'Work Sans',sans-serif; }
+.dst-nav button.active{ color:var(--brass); }
 .dst-stamp{ border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-weight:700; letter-spacing:0.01em; flex-shrink:0; }
 .dst-stamp.earned{ background:var(--brass-soft); border:2px solid var(--brass); color:var(--brass-ink); transform:rotate(-6deg); }
 .dst-stamp.empty{ border:2px dashed var(--line-dark); color:var(--ink-soft); opacity:0.5; }
@@ -113,7 +126,7 @@ function uid() {
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function daysUntil(dateStr) {
@@ -227,7 +240,7 @@ function ResultCard({ show, onEdit, onDelete }) {
           <div className="font-semibold mt-0.5">{show.showName}</div>
           <div className="text-sm flex items-center gap-1 mt-0.5" style={{ color: 'var(--ink-soft)' }}>
             {show.location && <MapPin size={12} />}
-            {show.location}{show.dogClass ? ` \u00B7 ${show.dogClass} class` : ''}
+            {show.location}{show.dogClass ? ` \u00B7 ${show.dogClass}` : ''}
           </div>
           {show.judge && (
             <div className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Dommer: {show.judge}</div>
@@ -257,7 +270,7 @@ function ResultCard({ show, onEdit, onDelete }) {
           {earned.map((c) => <CertStamp key={c.code} code={c.code} earned size="sm" />)}
           {show.ckQuality && (
             <span className="dst-mono" style={{ fontSize: '0.7rem', color: 'var(--sage)', border: '1px solid var(--sage)', borderRadius: '999px', padding: '0.2rem 0.55rem' }}>
-              CK quality
+              CK-kvalitet
             </span>
           )}
           {show.hederspris && (
@@ -268,7 +281,7 @@ function ResultCard({ show, onEdit, onDelete }) {
         </div>
       )}
       {show.points !== '' && show.points !== undefined && show.points !== null && (
-        <div className="dst-mono text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>{show.points} points</div>
+        <div className="dst-mono text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>{show.points} poeng</div>
       )}
       {show.notes && <div className="text-sm mt-2">{show.notes}</div>}
       <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--line-dark)' }}>
@@ -288,7 +301,7 @@ function UpcomingCard({ show, onEdit, onDelete, onLogResult }) {
           <div className="font-semibold mt-0.5">{show.showName}</div>
           <div className="text-sm flex items-center gap-1 mt-0.5" style={{ color: 'var(--ink-soft)' }}>
             {show.location && <MapPin size={12} />}
-            {show.location}{show.dogClass ? ` \u00B7 ${show.dogClass} class` : ''}
+            {show.location}{show.dogClass ? ` \u00B7 ${show.dogClass}` : ''}
           </div>
         </div>
         <div className="dst-display text-2xl font-bold text-right" style={{ color: 'var(--rust)' }}>
@@ -299,7 +312,7 @@ function UpcomingCard({ show, onEdit, onDelete, onLogResult }) {
       {show.notes && <div className="text-sm mt-2">{show.notes}</div>}
       <div className="flex gap-2 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid var(--line-dark)' }}>
         <button onClick={onLogResult} className="dst-btn-light" style={{ borderColor: 'var(--brass)', color: 'var(--brass-ink)' }}>
-          <Trophy size={13} />Log result
+          <Trophy size={13} />Logg resultat
         </button>
         <button onClick={onEdit} className="dst-btn-light"><Pencil size={13} />Rediger</button>
         <button onClick={onDelete} className="dst-btn-light danger"><Trash2 size={13} />Slett</button>
@@ -320,7 +333,7 @@ function GoalCard({ goal, progress, onEdit, onDelete }) {
         </div>
         {progress.complete && (
           <div className="dst-mono text-xs font-bold flex items-center gap-1 flex-shrink-0" style={{ color: 'var(--sage)' }}>
-            <Trophy size={15} />Achieved
+            <Trophy size={15} />Oppnådd
           </div>
         )}
       </div>
@@ -497,7 +510,7 @@ function ShowForm({ initial, onSave, onCancel }) {
           <div className="flex gap-2 flex-wrap">
             <label className="dst-chip" style={{ display: 'flex', width: 'fit-content' }}>
               <input type="checkbox" checked={!!form.ckQuality} onChange={(e) => set('ckQuality', e.target.checked)} style={{ marginRight: '0.4rem' }} />
-              CK quality (Certifikatkvalitet)
+              CK-kvalitet (Certifikatkvalitet)
             </label>
             <label className="dst-chip" style={{ display: 'flex', width: 'fit-content' }}>
               <input type="checkbox" checked={!!form.hederspris} onChange={(e) => set('hederspris', e.target.checked)} style={{ marginRight: '0.4rem' }} />
@@ -823,40 +836,143 @@ function ImportForm({ onImport, onCancel }) {
 }
 
 
-function Dashboard({ dog, dogShows, dogGoals, onEditShow, onDeleteShow }) {
+function ageLabel(birthDate) {
+  if (!birthDate) return '';
+  const b = new Date(birthDate + 'T00:00:00');
+  const now = new Date();
+  let months = (now.getFullYear() - b.getFullYear()) * 12 + (now.getMonth() - b.getMonth());
+  if (now.getDate() < b.getDate()) months -= 1;
+  if (months < 0) return '';
+  if (months < 24) return `${months} mnd`;
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  return rest ? `${years} år ${rest} mnd` : `${years} år`;
+}
+
+const GRADE_SHORT = { Excellent: 'EXC', 'Very Good': 'VG', Good: 'G', Sufficient: 'SUFF', Disqualified: 'DISK', Absent: 'Fraværende' };
+
+function ResultBadges({ show, dog }) {
+  const earned = CERT_TYPES.filter((c) => show.certs && show.certs[c.code]);
+  const sex = (dog && dog.sex) || '';
+  const breedLabel = /^(f|female|tik|tispe)/i.test(sex) ? 'BTK' : /^(m|male|hann)/i.test(sex) ? 'BHK' : 'BHK/BTK';
+  const grade = GRADE_SHORT[show.quality] || show.quality;
+  const placement = show.placement && show.placement !== '-' ? ` ${show.placement}.` : '';
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {grade && <span className="dst-badge">{grade}{placement}</span>}
+      {show.ckQuality && <span className="dst-badge">CK</span>}
+      {show.breedPlacement && show.breedPlacement !== '-' && (
+        <span className="dst-badge">{show.breedPlacement}. {breedLabel}</span>
+      )}
+      {show.bigPlacement && show.bigPlacement !== '-' && (
+        <span className="dst-badge">{show.bigPlacement}. BIG</span>
+      )}
+      {earned.map((c) => <span key={c.code} className="dst-badge brass">{c.short}</span>)}
+      {show.hederspris && <span className="dst-badge brass">HP</span>}
+    </div>
+  );
+}
+
+function Dashboard({ dog, dogShows, dogGoals, onGoToShows, onGoToGoals }) {
   const upcoming = dogShows.filter((s) => s.status === 'upcoming').sort((a, b) => new Date(a.date) - new Date(b.date));
   const past = dogShows.filter((s) => s.status === 'done').sort((a, b) => new Date(b.date) - new Date(a.date));
   const nextShow = upcoming[0];
-  const recent = past.slice(0, 3);
+  const latest = past[0];
+  const older = past.slice(1, 3);
+  const days = nextShow ? daysUntil(nextShow.date) : null;
+  const photo = /laban/i.test(dog.name || '') ? `${import.meta.env.BASE_URL}laban.jpg` : null;
+  const details = [dog.breed, ageLabel(dog.birthDate)].filter(Boolean).join(' · ');
 
   return (
-    <div className="space-y-5">
-      {nextShow ? (
-        <div className="dst-card p-5 rounded-2xl flex items-center justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-wide font-bold" style={{ color: 'var(--ink-soft)' }}>Neste utstilling</div>
-            <div className="dst-display text-xl font-semibold mt-1">{nextShow.showName}</div>
-            <div className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>{formatDate(nextShow.date)} &middot; {nextShow.location}</div>
-          </div>
-          <div className="text-center flex-shrink-0">
-            <div className="dst-display text-4xl font-bold" style={{ color: 'var(--rust)' }}>{daysUntil(nextShow.date)}</div>
-            <div className="text-xs uppercase dst-mono" style={{ color: 'var(--ink-soft)' }}>dager</div>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="dst-avatar">
+          {photo ? <img src={photo} alt={dog.name} /> : <PawPrint size={30} />}
         </div>
-      ) : (
-        <div className="dst-card p-5 rounded-2xl">
-          <div className="dst-display text-lg font-semibold">Ingen kommende utstillinger ennå</div>
-          <div className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>Add the next show on {dog.name}'s calendar from the Shows tab.</div>
+        <div>
+          <div className="dst-display font-semibold" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>{dog.name}</div>
+          {details && <div className="text-sm" style={{ color: 'var(--cream-soft)' }}>{details}</div>}
         </div>
-      )}
+      </div>
 
+      <div className="dst-panel flex items-center justify-between gap-4">
+        {nextShow ? (
+          <>
+            <div style={{ minWidth: 0 }}>
+              <div className="dst-panel-label">Neste utstilling</div>
+              <div className="font-semibold mt-1">{nextShow.showName}</div>
+              <div className="text-sm" style={{ color: 'var(--cream-soft)' }}>
+                {formatDate(nextShow.date)}{nextShow.location ? ` · ${nextShow.location}` : ''}
+              </div>
+            </div>
+            <div className="text-center flex-shrink-0">
+              {days <= 0 ? (
+                <div className="dst-display font-semibold" style={{ fontSize: '1.4rem', color: 'var(--brass)' }}>I dag</div>
+              ) : (
+                <>
+                  <div className="dst-display font-semibold" style={{ fontSize: '2.2rem', lineHeight: 1, color: 'var(--brass)' }}>{days}</div>
+                  <div className="dst-panel-label">{days === 1 ? 'dag' : 'dager'}</div>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          <div>
+            <div className="dst-panel-label">Neste utstilling</div>
+            <div className="font-semibold mt-1">Ingen kommende utstillinger</div>
+            <button className="dst-link mt-2" onClick={onGoToShows}>Legg til utstilling <ChevronRight size={15} /></button>
+          </div>
+        )}
+      </div>
+
+      {dogGoals.slice(0, 2).map((goal) => {
+        const progress = computeGoalProgress(goal, dogShows);
+        const pct = Math.min(100, Math.round((progress.count / Math.max(1, goal.targetCount)) * 100));
+        return (
+          <button
+            key={goal.id}
+            className="dst-panel w-full text-left"
+            style={{ border: 'none', color: 'inherit', cursor: 'pointer', display: 'block', font: 'inherit' }}
+            onClick={onGoToGoals}
+          >
+            <div className="flex justify-between gap-3 mb-2">
+              <span className="dst-panel-label" style={{ minWidth: 0 }}>Mål: {goal.title}</span>
+              <span className="dst-panel-label flex-shrink-0">
+                {progress.complete ? 'Oppnådd' : `${progress.count} av ${goal.targetCount} ${goal.trackedCert}`}
+              </span>
+            </div>
+            <div className="dst-bar"><div style={{ width: `${pct}%` }} /></div>
+          </button>
+        );
+      })}
 
       <div>
-        <div className="dst-display text-lg font-semibold mb-3">Siste resultater</div>
-        {recent.length === 0 ? (
+        <div className="flex items-center justify-between mb-2">
+          <div className="dst-display text-lg font-semibold">Siste resultater</div>
+          {past.length > 0 && <button className="dst-link" onClick={onGoToShows}>Se alle <ChevronRight size={15} /></button>}
+        </div>
+        {!latest ? (
           <EmptyHint text="Ingen resultater ennå. Resultater vises her når en utstilling er markert som gjennomført." />
         ) : (
-          recent.map((s) => <ResultCard key={s.id} show={s} onEdit={() => onEditShow(s)} onDelete={() => onDeleteShow(s)} />)
+          <div className="space-y-3">
+            <div className="dst-panel">
+              <div className="dst-panel-label">{formatDate(latest.date)}</div>
+              <div className="font-semibold mt-0.5">{latest.showName}</div>
+              {(latest.location || latest.dogClass) && (
+                <div className="text-sm mb-3" style={{ color: 'var(--cream-soft)' }}>
+                  {[latest.location, latest.dogClass].filter(Boolean).join(' · ')}
+                </div>
+              )}
+              <ResultBadges show={latest} dog={dog} />
+            </div>
+            {older.map((s) => (
+              <div key={s.id} className="dst-panel">
+                <div className="font-semibold text-sm">{s.showName}</div>
+                <div className="dst-panel-label mb-2">{formatDate(s.date)}</div>
+                <ResultBadges show={s} dog={dog} />
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -963,10 +1079,10 @@ function DogsTab({ dogs, shows, goals, activeDogId, onSelect, onAdd, onEdit, onD
 }
 
 const TABS = [
-  { key: 'dashboard', label: 'Oversikt' },
-  { key: 'shows', label: 'Utstillinger' },
-  { key: 'goals', label: 'Mål' },
-  { key: 'dogs', label: 'Hunder' },
+  { key: 'dashboard', label: 'Oversikt', Icon: House },
+  { key: 'shows', label: 'Utstillinger', Icon: CalendarDays },
+  { key: 'goals', label: 'Mål', Icon: Target },
+  { key: 'dogs', label: 'Hunder', Icon: PawPrint },
 ];
 
 const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : '';
@@ -1185,13 +1301,15 @@ export default function App() {
   return (
     <div className="dst-app">
       <style>{CSS}</style>
-      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '1.5rem 1rem 4rem' }}>
-        <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '1.25rem 1rem 6.5rem' }}>
+        <div className="flex items-center justify-between mb-5 gap-3">
           <div>
             <div className="dst-mono text-xs uppercase tracking-widest font-semibold" style={{ color: 'var(--brass)' }}>Kennel Ledger</div>
-            <div className="dst-display font-semibold" style={{ fontSize: '1.6rem', color: 'var(--cream)' }}>
-              {activeDog ? activeDog.name : 'Dog Show Tracker'}
-            </div>
+            {(!activeDog || tab !== 'dashboard') && (
+              <div className="dst-display font-semibold" style={{ fontSize: '1.4rem', color: 'var(--cream)' }}>
+                {activeDog ? activeDog.name : 'Dog Show Tracker'}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {dogs.length > 1 && (
@@ -1220,14 +1338,15 @@ export default function App() {
           <WelcomeCard onAdd={openAddDog} />
         ) : (
           <>
-            <div className="dst-tabbar">
-              {TABS.map((t) => (
-                <button key={t.key} className={`dst-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            {tab === 'dashboard' && <Dashboard dog={activeDog} dogShows={dogShows} dogGoals={dogGoals} onEditShow={openEditShow} onDeleteShow={deleteShow} />}
+            {tab === 'dashboard' && (
+              <Dashboard
+                dog={activeDog}
+                dogShows={dogShows}
+                dogGoals={dogGoals}
+                onGoToShows={() => setTab('shows')}
+                onGoToGoals={() => setTab('goals')}
+              />
+            )}
             {tab === 'shows' && (
               <ShowsTab
                 dogShows={dogShows}
@@ -1250,6 +1369,19 @@ export default function App() {
           </>
         )}
       </div>
+
+      {activeDog && (
+        <nav className="dst-nav" aria-label="Hovedmeny">
+          <div className="dst-nav-inner">
+            {TABS.map(({ key, label, Icon }) => (
+              <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
+                <Icon size={22} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
 
       {modal && modal.type === 'dog' && (
         <Modal title={modal.title} onClose={closeModal}>
