@@ -2,7 +2,7 @@
 cd C:\Users\Bruker\Claude\laban-tracker2
 
 echo Starter Laban Show Tracker...
-start "Laban Server" cmd /k "node server.js"
+start "Laban Server" cmd /k "node server.cjs"
 timeout /t 2 /nobreak > nul
 start "Laban App" cmd /k "npm run dev"
 timeout /t 3 /nobreak > nul

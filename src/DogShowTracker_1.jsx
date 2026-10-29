@@ -177,16 +177,15 @@ function CertStamp({ code, earned, size = 'md' }) {
 function Modal({ title, onClose, children }) {
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ background: 'rgba(22,36,29,0.6)', zIndex: 50 }}
+      style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(22,36,29,0.6)', zIndex: 50 }}
       onClick={onClose}
     >
       <div
         className="dst-card w-full rounded-2xl p-5"
-        style={{ maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}
+        style={{ width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto', borderRadius: '1rem', padding: '1.25rem' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div className="dst-display text-xl font-semibold">{title}</div>
           <button onClick={onClose} className="dst-btn-light" style={{ padding: '0.4rem' }}>
             <X size={18} />
@@ -824,7 +823,7 @@ function ImportForm({ onImport, onCancel }) {
 }
 
 
-function Dashboard({ dog, dogShows, dogGoals }) {
+function Dashboard({ dog, dogShows, dogGoals, onEditShow, onDeleteShow }) {
   const upcoming = dogShows.filter((s) => s.status === 'upcoming').sort((a, b) => new Date(a.date) - new Date(b.date));
   const past = dogShows.filter((s) => s.status === 'done').sort((a, b) => new Date(b.date) - new Date(a.date));
   const nextShow = upcoming[0];
@@ -851,39 +850,13 @@ function Dashboard({ dog, dogShows, dogGoals }) {
         </div>
       )}
 
-      {dogGoals.length > 0 && (
-        <div className="dst-card p-5 rounded-2xl">
-          <div className="dst-display text-lg font-semibold mb-3">Mål</div>
-          <div className="space-y-3">
-            {dogGoals.map((goal) => {
-              const progress = computeGoalProgress(goal, dogShows);
-              return (
-                <div key={goal.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-semibold">{goal.title}</span>
-                    {progress.complete && <Trophy size={15} style={{ color: 'var(--sage)' }} />}
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {Array.from({ length: goal.targetCount }).map((_, i) => (
-                      <CertStamp key={i} code={goal.trackedCert} earned={i < progress.count} size="sm" />
-                    ))}
-                    <span className="dst-mono text-xs ml-1" style={{ color: 'var(--ink-soft)' }}>
-                      {progress.count}/{goal.targetCount}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <div>
         <div className="dst-display text-lg font-semibold mb-3">Siste resultater</div>
         {recent.length === 0 ? (
           <EmptyHint text="Ingen resultater ennå. Resultater vises her når en utstilling er markert som gjennomført." />
         ) : (
-          recent.map((s) => <ResultCard key={s.id} show={s} onEdit={() => {}} onDelete={() => {}} />)
+          recent.map((s) => <ResultCard key={s.id} show={s} onEdit={() => onEditShow(s)} onDelete={() => onDeleteShow(s)} />)
         )}
       </div>
     </div>
@@ -996,6 +969,31 @@ const TABS = [
   { key: 'dogs', label: 'Hunder' },
 ];
 
+const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : '';
+const PASSWORD_KEY = 'laban-password';
+
+async function apiRequest(options = {}) {
+  const send = () =>
+    fetch(`${API_BASE}/api/data`, {
+      ...options,
+      headers: { ...(options.headers || {}), 'x-app-password': localStorage.getItem(PASSWORD_KEY) || '' },
+    });
+  let res = await send();
+  if (res.status === 401) {
+    const pw = window.prompt('Passord for Laban Tracker:');
+    if (pw === null) throw new Error('Mangler passord');
+    localStorage.setItem(PASSWORD_KEY, pw);
+    res = await send();
+    if (res.status === 401) {
+      localStorage.removeItem(PASSWORD_KEY);
+      window.alert('Feil passord. Last siden på nytt for å prøve igjen.');
+      throw new Error('Feil passord');
+    }
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 export default function App() {
   const [dogs, setDogs] = useState([]);
   const [shows, setShows] = useState([]);
@@ -1004,24 +1002,19 @@ export default function App() {
   const [tab, setTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
-
-  const SERVER = 'http://localhost:3001';
+  const importFileRef = React.useRef(null);
 
   useEffect(() => {
-    fetch(`${SERVER}/api/data`)
-      .then((r) => r.json())
+    apiRequest()
       .then((data) => {
         const d = data.dogs || [];
         const s = data.shows || [];
         const g = data.goals || [];
-        setDogs(d);
-        setShows(s);
-        setGoals(g);
+        setDogs(d); setShows(s); setGoals(g);
         if (d.length > 0) setActiveDogId(d[0].id);
         setLoading(false);
       })
       .catch(() => {
-        // Server ikke tilgjengelig — fall tilbake til localStorage
         const d = JSON.parse(localStorage.getItem(STORAGE_KEYS.dogs) || '[]');
         const s = JSON.parse(localStorage.getItem(STORAGE_KEYS.shows) || '[]');
         const g = JSON.parse(localStorage.getItem(STORAGE_KEYS.goals) || '[]');
@@ -1032,12 +1025,11 @@ export default function App() {
   }, []);
 
   function persist(dogs, shows, goals) {
-    fetch(`${SERVER}/api/data`, {
+    apiRequest({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dogs, shows, goals }),
     }).catch(() => {
-      // Fall tilbake til localStorage hvis server er nede
       localStorage.setItem(STORAGE_KEYS.dogs, JSON.stringify(dogs));
       localStorage.setItem(STORAGE_KEYS.shows, JSON.stringify(shows));
       localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
@@ -1061,7 +1053,7 @@ export default function App() {
   }
 
   function deleteDog(dog) {
-    if (!window.confirm(`Slette ${dog.name} og alle tilknyttede utstillinger og mål? Dette kan ikke angres.`)) return;
+    
     const nextDogs = dogs.filter((d) => d.id !== dog.id);
     const nextShows = shows.filter((s) => s.dogId !== dog.id);
     const nextGoals = goals.filter((g) => g.dogId !== dog.id);
@@ -1083,7 +1075,7 @@ export default function App() {
   }
 
   function deleteShow(show) {
-    if (!window.confirm('Slette denne utstillingen?')) return;
+    
     const nextShows = shows.filter((s) => s.id !== show.id);
     setShows(nextShows);
     persist(dogs, nextShows, goals);
@@ -1102,7 +1094,7 @@ export default function App() {
   }
 
   function deleteGoal(goal) {
-    if (!window.confirm('Slette dette målet?')) return;
+    
     const nextGoals = goals.filter((g) => g.id !== goal.id);
     setGoals(nextGoals);
     persist(dogs, shows, nextGoals);
@@ -1152,6 +1144,40 @@ export default function App() {
     );
   }
 
+  function exportData() {
+    const data = { version: 2, exportedAt: new Date().toISOString(), dogs, shows, goals };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `laban-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImportFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (!ev.target) return;
+      try {
+        const data = JSON.parse(ev.target.result);
+        const d = data.dogs || [];
+        const s = data.shows || [];
+        const g = data.goals || [];
+        setDogs(d); setShows(s); setGoals(g);
+        if (d.length > 0) setActiveDogId(d[0].id);
+        persist(d, s, g);
+        alert(`Importert! ${d.length} hund(er), ${s.length} utstilling(er), ${g.length} mål.`);
+      } catch (err) {
+        alert('Kunne ikke lese filen. Sjekk at det er en gyldig backup-fil.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
   const activeDog = dogs.find((d) => d.id === activeDogId) || dogs[0] || null;
   const dogShows = activeDog ? shows.filter((s) => s.dogId === activeDog.id) : [];
   const dogGoals = activeDog ? goals.filter((g) => g.dogId === activeDog.id) : [];
@@ -1177,6 +1203,13 @@ export default function App() {
                 {dogs.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             )}
+            <button onClick={exportData} className="dst-btn-secondary" style={{ padding: '0.55rem', fontSize: '0.75rem' }} title="Eksporter data">
+              ↓
+            </button>
+            <button onClick={() => importFileRef.current?.click()} className="dst-btn-secondary" style={{ padding: '0.55rem', fontSize: '0.75rem' }} title="Importer data">
+              ↑
+            </button>
+            <input ref={importFileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportFile} />
             <button onClick={openAddDog} className="dst-btn-secondary" style={{ padding: '0.55rem' }} title="Legg til hund">
               <Plus size={18} />
             </button>
@@ -1194,7 +1227,7 @@ export default function App() {
                 </button>
               ))}
             </div>
-            {tab === 'dashboard' && <Dashboard dog={activeDog} dogShows={dogShows} dogGoals={dogGoals} />}
+            {tab === 'dashboard' && <Dashboard dog={activeDog} dogShows={dogShows} dogGoals={dogGoals} onEditShow={openEditShow} onDeleteShow={deleteShow} />}
             {tab === 'shows' && (
               <ShowsTab
                 dogShows={dogShows}
