@@ -110,6 +110,13 @@ const CSS = `
 .dst-bar{ height:6px; background:rgba(242,236,221,0.16); border-radius:3px; overflow:hidden; }
 .dst-bar > div{ height:100%; background:var(--brass); border-radius:3px; transition:width 0.3s; }
 .dst-link{ background:none; border:none; color:var(--brass); font-weight:600; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.2rem; padding:0; font-family:'Work Sans',sans-serif; }
+.dst-btn-brass,.dst-btn-ghost{ background:transparent; border-radius:10px; padding:0.45rem 0.6rem; font-weight:600; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.3rem; white-space:nowrap; cursor:pointer; font-family:'Work Sans',sans-serif; }
+.dst-btn-brass{ border:1px solid var(--brass); color:var(--brass); }
+.dst-btn-ghost{ border:1px solid var(--line); color:var(--cream-soft); }
+.dst-btn-ghost:hover{ color:var(--cream); border-color:var(--cream-soft); }
+.dst-btn-ghost.danger{ color:#E39A80; }
+.dst-notes{ color:var(--cream-soft); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-wrap; }
+.dst-notes.open{ display:block; -webkit-line-clamp:unset; }
 .dst-nav{ position:fixed; left:0; right:0; bottom:0; background:var(--ink-bg); border-top:1px solid var(--line); z-index:20; padding-bottom:env(safe-area-inset-bottom); }
 .dst-nav-inner{ max-width:640px; margin:0 auto; display:flex; justify-content:space-around; padding:0.4rem 0.5rem; }
 .dst-nav button{ background:none; border:none; color:var(--cream-soft); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:0.7rem; font-weight:600; padding:0.35rem 0.9rem; cursor:pointer; font-family:'Work Sans',sans-serif; }
@@ -224,99 +231,94 @@ function WelcomeCard({ onAdd }) {
 
 function EmptyHint({ text }) {
   return (
-    <div className="dst-card p-4 rounded-2xl text-sm" style={{ color: 'var(--ink-soft)' }}>
+    <div className="dst-panel text-sm" style={{ color: 'var(--cream-soft)' }}>
       {text}
     </div>
   );
 }
 
-function ResultCard({ show, onEdit, onDelete }) {
-  const earned = CERT_TYPES.filter((c) => show.certs && show.certs[c.code]);
+const COUNTRY_NO = { Sweden: 'Sverige', Denmark: 'Danmark', Finland: 'Finland', Germany: 'Tyskland', Netherlands: 'Nederland' };
+
+function placeLine(show) {
+  const country = show.country && show.country !== 'Norway' ? (COUNTRY_NO[show.country] || show.country) : '';
+  return [show.location, country, show.dogClass].filter(Boolean).join(' · ');
+}
+
+function ShowActions({ onEdit, onDelete, onLogResult }) {
   return (
-    <div className="dst-card p-4 rounded-2xl mb-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="dst-mono text-xs" style={{ color: 'var(--ink-soft)' }}>{formatDate(show.date)}</div>
-          <div className="font-semibold mt-0.5">{show.showName}</div>
-          <div className="text-sm flex items-center gap-1 mt-0.5" style={{ color: 'var(--ink-soft)' }}>
-            {show.location && <MapPin size={12} />}
-            {show.location}{show.dogClass ? ` \u00B7 ${show.dogClass}` : ''}
-          </div>
-          {show.judge && (
-            <div className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Dommer: {show.judge}</div>
-          )}
-        </div>
-        {show.quality && (
-          <div className="text-right">
-            <div className="text-sm font-semibold" style={{ color: gradeColor(show.quality) }}>
-              {show.quality}
-              {show.placement && show.placement !== '-' ? ` ${show.placement}${ordinal(show.placement)}` : ''}
-            </div>
-            {show.breedPlacement && show.breedPlacement !== '-' && (
-              <div className="dst-mono text-xs mt-0.5" style={{ color: 'var(--ink-soft)' }}>
-                BHK/BTK {show.breedPlacement}{ordinal(show.breedPlacement)}
-              </div>
-            )}
-            {show.bigPlacement && show.bigPlacement !== '-' && (
-              <div className="dst-mono text-xs mt-0.5 font-bold" style={{ color: 'var(--brass-ink)' }}>
-                BIG {show.bigPlacement}{ordinal(show.bigPlacement)}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      {(earned.length > 0 || show.ckQuality || show.hederspris) && (
-        <div className="flex gap-2 mt-3 flex-wrap items-center">
-          {earned.map((c) => <CertStamp key={c.code} code={c.code} earned size="sm" />)}
-          {show.ckQuality && (
-            <span className="dst-mono" style={{ fontSize: '0.7rem', color: 'var(--sage)', border: '1px solid var(--sage)', borderRadius: '999px', padding: '0.2rem 0.55rem' }}>
-              CK-kvalitet
-            </span>
-          )}
-          {show.hederspris && (
-            <span className="dst-mono" style={{ fontSize: '0.7rem', color: 'var(--brass-ink)', border: '1px solid var(--brass)', borderRadius: '999px', padding: '0.2rem 0.55rem' }}>
-              Hederspris
-            </span>
-          )}
+    <div className="flex gap-2 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid var(--line)' }}>
+      {onLogResult && (
+        <button onClick={onLogResult} className="dst-btn-brass"><Trophy size={14} />Logg resultat</button>
+      )}
+      <button onClick={onEdit} className="dst-btn-ghost"><Pencil size={14} />Rediger</button>
+      <button onClick={onDelete} className="dst-btn-ghost danger"><Trash2 size={14} />Slett</button>
+    </div>
+  );
+}
+
+function ResultCard({ show, dog, onEdit, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const longNotes = show.notes && show.notes.length > 120;
+  return (
+    <div className="dst-panel">
+      <div className="dst-panel-label">{formatDate(show.date)}</div>
+      <div className="font-semibold mt-0.5">{show.showName}</div>
+      {placeLine(show) && (
+        <div className="text-sm flex items-center gap-1 mt-0.5" style={{ color: 'var(--cream-soft)' }}>
+          <MapPin size={13} className="flex-shrink-0" />
+          <span>{placeLine(show)}</span>
         </div>
       )}
+      {show.judge && (
+        <div className="text-xs mt-1" style={{ color: 'var(--cream-soft)' }}>Dommer: {show.judge}</div>
+      )}
+      <ResultBadges show={show} dog={dog} className="mt-3" />
       {show.points !== '' && show.points !== undefined && show.points !== null && (
-        <div className="dst-mono text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>{show.points} poeng</div>
+        <div className="dst-mono text-xs mt-2" style={{ color: 'var(--cream-soft)' }}>{show.points} poeng</div>
       )}
-      {show.notes && <div className="text-sm mt-2">{show.notes}</div>}
-      <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--line-dark)' }}>
-        <button onClick={onEdit} className="dst-btn-light"><Pencil size={13} />Rediger</button>
-        <button onClick={onDelete} className="dst-btn-light danger"><Trash2 size={13} />Slett</button>
-      </div>
+      {show.notes && (
+        <div className="mt-3">
+          <div className={`dst-notes text-sm ${open ? 'open' : ''}`}>{show.notes}</div>
+          {longNotes && (
+            <button className="dst-link mt-1" onClick={() => setOpen(!open)}>{open ? 'Vis mindre' : 'Les mer'}</button>
+          )}
+        </div>
+      )}
+      <ShowActions onEdit={onEdit} onDelete={onDelete} />
     </div>
   );
 }
 
 function UpcomingCard({ show, onEdit, onDelete, onLogResult }) {
+  const days = daysUntil(show.date);
   return (
-    <div className="dst-card p-4 rounded-2xl mb-3">
+    <div className="dst-panel">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="dst-mono text-xs" style={{ color: 'var(--ink-soft)' }}>{formatDate(show.date)}</div>
+        <div style={{ minWidth: 0 }}>
+          <div className="dst-panel-label">{formatDate(show.date)}</div>
           <div className="font-semibold mt-0.5">{show.showName}</div>
-          <div className="text-sm flex items-center gap-1 mt-0.5" style={{ color: 'var(--ink-soft)' }}>
-            {show.location && <MapPin size={12} />}
-            {show.location}{show.dogClass ? ` \u00B7 ${show.dogClass}` : ''}
-          </div>
+          {placeLine(show) && (
+            <div className="text-sm flex items-center gap-1 mt-0.5" style={{ color: 'var(--cream-soft)' }}>
+              <MapPin size={13} className="flex-shrink-0" />
+              <span>{placeLine(show)}</span>
+            </div>
+          )}
         </div>
-        <div className="dst-display text-2xl font-bold text-right" style={{ color: 'var(--rust)' }}>
-          {daysUntil(show.date)}
-          <div className="text-xs font-normal dst-mono" style={{ color: 'var(--ink-soft)' }}>dager</div>
+        <div className="text-center flex-shrink-0">
+          {days < 0 ? (
+            <span className="dst-badge brass">Mangler resultat</span>
+          ) : days === 0 ? (
+            <div className="dst-display font-semibold" style={{ fontSize: '1.3rem', color: 'var(--brass)' }}>I dag</div>
+          ) : (
+            <>
+              <div className="dst-display font-semibold" style={{ fontSize: '2rem', lineHeight: 1, color: 'var(--brass)' }}>{days}</div>
+              <div className="dst-panel-label">{days === 1 ? 'dag' : 'dager'}</div>
+            </>
+          )}
         </div>
       </div>
-      {show.notes && <div className="text-sm mt-2">{show.notes}</div>}
-      <div className="flex gap-2 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid var(--line-dark)' }}>
-        <button onClick={onLogResult} className="dst-btn-light" style={{ borderColor: 'var(--brass)', color: 'var(--brass-ink)' }}>
-          <Trophy size={13} />Logg resultat
-        </button>
-        <button onClick={onEdit} className="dst-btn-light"><Pencil size={13} />Rediger</button>
-        <button onClick={onDelete} className="dst-btn-light danger"><Trash2 size={13} />Slett</button>
-      </div>
+      {show.notes && <div className="text-sm mt-2" style={{ color: 'var(--cream-soft)' }}>{show.notes}</div>}
+      <ShowActions onEdit={onEdit} onDelete={onDelete} onLogResult={onLogResult} />
     </div>
   );
 }
@@ -851,14 +853,17 @@ function ageLabel(birthDate) {
 
 const GRADE_SHORT = { Excellent: 'EXC', 'Very Good': 'VG', Good: 'G', Sufficient: 'SUFF', Disqualified: 'DISK', Absent: 'Fraværende' };
 
-function ResultBadges({ show, dog }) {
+function ResultBadges({ show, dog, className = '' }) {
   const earned = CERT_TYPES.filter((c) => show.certs && show.certs[c.code]);
   const sex = (dog && dog.sex) || '';
   const breedLabel = /^(f|female|tik|tispe)/i.test(sex) ? 'BTK' : /^(m|male|hann)/i.test(sex) ? 'BHK' : 'BHK/BTK';
   const grade = GRADE_SHORT[show.quality] || show.quality;
   const placement = show.placement && show.placement !== '-' ? ` ${show.placement}.` : '';
+  const hasBreed = show.breedPlacement && show.breedPlacement !== '-';
+  const hasBig = show.bigPlacement && show.bigPlacement !== '-';
+  if (!grade && !show.ckQuality && !hasBreed && !hasBig && earned.length === 0 && !show.hederspris) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className={`flex flex-wrap gap-1.5 ${className}`}>
       {grade && <span className="dst-badge">{grade}{placement}</span>}
       {show.ckQuality && <span className="dst-badge">CK</span>}
       {show.breedPlacement && show.breedPlacement !== '-' && (
@@ -979,39 +984,53 @@ function Dashboard({ dog, dogShows, dogGoals, onGoToShows, onGoToGoals }) {
   );
 }
 
-function ShowsTab({ dogShows, onAdd, onEdit, onDelete, onLogResult, onImport }) {
+function ShowsTab({ dog, dogShows, onAdd, onEdit, onDelete, onLogResult, onImport }) {
   const [view, setView] = useState('upcoming');
   const upcoming = dogShows.filter((s) => s.status === 'upcoming').sort((a, b) => new Date(a.date) - new Date(b.date));
   const results = dogShows.filter((s) => s.status === 'done').sort((a, b) => new Date(b.date) - new Date(a.date));
+  const years = [...new Set(results.map((s) => (s.date || '').slice(0, 4)))];
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-        <div className="dst-seg">
-          <button className={`dst-seg-btn ${view === 'upcoming' ? 'active' : ''}`} onClick={() => setView('upcoming')}>
-            Kommende ({upcoming.length})
-          </button>
-          <button className={`dst-seg-btn ${view === 'results' ? 'active' : ''}`} onClick={() => setView('results')}>
-            Resultater ({results.length})
-          </button>
-        </div>
-        <div className="flex gap-2">
-          <button className="dst-btn-secondary" onClick={onImport}>Importer resultater</button>
-          <button className="dst-btn-secondary" onClick={onAdd}><Plus size={15} />Legg til utstilling</button>
-        </div>
+      <div className="dst-seg">
+        <button className={`dst-seg-btn ${view === 'upcoming' ? 'active' : ''}`} onClick={() => setView('upcoming')}>
+          Kommende ({upcoming.length})
+        </button>
+        <button className={`dst-seg-btn ${view === 'results' ? 'active' : ''}`} onClick={() => setView('results')}>
+          Resultater ({results.length})
+        </button>
+      </div>
+      <div className="flex gap-2 mb-4">
+        <button className="dst-btn-primary flex-1 flex items-center justify-center gap-1.5" onClick={onAdd}>
+          <Plus size={16} />Legg til utstilling
+        </button>
+        <button className="dst-btn-secondary" onClick={onImport}>Importer</button>
       </div>
       {view === 'upcoming' ? (
         upcoming.length === 0 ? (
           <EmptyHint text="Ingen kommende utstillinger. Legg til den neste i kalenderen." />
         ) : (
-          upcoming.map((s) => (
-            <UpcomingCard key={s.id} show={s} onEdit={() => onEdit(s)} onDelete={() => onDelete(s)} onLogResult={() => onLogResult(s)} />
-          ))
+          <div className="space-y-3">
+            {upcoming.map((s) => (
+              <UpcomingCard key={s.id} show={s} onEdit={() => onEdit(s)} onDelete={() => onDelete(s)} onLogResult={() => onLogResult(s)} />
+            ))}
+          </div>
         )
       ) : results.length === 0 ? (
         <EmptyHint text="Ingen resultater ennå. Logg et resultat fra Kommende-fanen etter en utstilling, eller legg til et tidligere resultat direkte." />
       ) : (
-        results.map((s) => <ResultCard key={s.id} show={s} onEdit={() => onEdit(s)} onDelete={() => onDelete(s)} />)
+        <div className="space-y-5">
+          {years.map((year) => (
+            <div key={year}>
+              <div className="dst-display text-lg font-semibold mb-2">{year}</div>
+              <div className="space-y-3">
+                {results.filter((s) => (s.date || '').slice(0, 4) === year).map((s) => (
+                  <ResultCard key={s.id} show={s} dog={dog} onEdit={() => onEdit(s)} onDelete={() => onDelete(s)} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -1349,6 +1368,7 @@ export default function App() {
             )}
             {tab === 'shows' && (
               <ShowsTab
+                dog={activeDog}
                 dogShows={dogShows}
                 onAdd={openAddShow}
                 onEdit={openEditShow}
