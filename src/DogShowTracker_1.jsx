@@ -91,20 +91,23 @@ const CSS = `
 .dst-seg{ display:flex; gap:0.4rem; margin-bottom:1rem; }
 .dst-seg-btn{ font-weight:600; font-size:0.8rem; padding:0.4rem 0.95rem; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--cream-soft); cursor:pointer; }
 .dst-seg-btn.active{ background:var(--surface); color:var(--ink); border-color:var(--surface); }
-.dst-input,.dst-select,.dst-textarea{ width:100%; padding:0.55rem 0.75rem; border-radius:10px; border:1px solid var(--line-dark); background:#fff; color:var(--ink); font-family:'Work Sans',sans-serif; font-size:0.9rem; }
+.dst-input,.dst-select,.dst-textarea{ width:100%; padding:0.6rem 0.75rem; border-radius:10px; border:1px solid var(--line); background:rgba(242,236,221,0.06); color:var(--cream); font-family:'Work Sans',sans-serif; font-size:1rem; color-scheme:dark; }
+.dst-app input[type=checkbox]{ accent-color:var(--brass); }
+.dst-select option{ background:var(--ink-bg-2); color:var(--cream); }
 .dst-textarea{ resize:vertical; }
 .dst-input:focus,.dst-select:focus,.dst-textarea:focus{ outline:2px solid var(--brass); outline-offset:1px; border-color:var(--brass); }
-.dst-label{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); margin-bottom:0.3rem; display:block; font-weight:700; }
+.dst-label{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--cream-soft); margin-bottom:0.3rem; display:block; font-weight:700; }
 .dst-btn-primary{ background:var(--brass); color:#2B2200; border:none; border-radius:12px; padding:0.6rem 1.2rem; font-weight:700; font-size:0.875rem; cursor:pointer; font-family:'Work Sans',sans-serif; }
 .dst-btn-primary[disabled]{ opacity:0.5; cursor:default; }
 .dst-btn-secondary{ background:transparent; color:var(--cream); border:1px solid var(--line); border-radius:12px; padding:0.55rem 1rem; font-weight:600; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; font-family:'Work Sans',sans-serif; }
 .dst-btn-secondary:hover{ border-color:var(--brass); color:var(--brass); }
-.dst-btn-light{ background:transparent; border:1px solid var(--line-dark); color:var(--ink-soft); border-radius:10px; padding:0.4rem 0.85rem; font-size:0.8rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem; font-family:'Work Sans',sans-serif; }
-.dst-btn-light:hover{ background:var(--surface-2); }
-.dst-btn-light.danger{ color:var(--rust); border-color:var(--rust); }
-.dst-chip{ display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.75rem; border-radius:999px; border:1px solid var(--line-dark); font-size:0.8rem; cursor:pointer; background:#fff; color:var(--ink); font-weight:600; font-family:'Work Sans',sans-serif; text-align:left; }
-.dst-chip.checked{ background:var(--brass-soft); border-color:var(--brass); color:var(--brass-ink); }
+.dst-btn-light{ background:transparent; border:1px solid var(--line); color:var(--cream-soft); border-radius:10px; padding:0.4rem 0.85rem; font-size:0.8rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem; font-family:'Work Sans',sans-serif; }
+.dst-btn-light:hover{ background:rgba(242,236,221,0.08); }
+.dst-btn-light.danger{ color:#E39A80; border-color:rgba(227,154,128,0.5); }
+.dst-chip{ display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.75rem; border-radius:999px; border:1px solid var(--line); font-size:0.8rem; cursor:pointer; background:transparent; color:var(--cream); font-weight:600; font-family:'Work Sans',sans-serif; text-align:left; }
+.dst-chip.checked{ background:rgba(201,162,39,0.18); border-color:var(--brass); color:#E3C45A; }
 .dst-select-dark{ background:var(--ink-bg-2); color:var(--cream); border:1px solid var(--line); border-radius:10px; padding:0.45rem 0.6rem; font-family:'Work Sans',sans-serif; font-size:0.85rem; }
+.dst-sheet{ background:var(--ink-bg-2); color:var(--cream); border:1px solid var(--line); box-shadow:0 12px 32px rgba(0,0,0,0.45); --ink:var(--cream); --ink-soft:var(--cream-soft); --line-dark:var(--line); --brass-ink:#E3C45A; --surface-2:rgba(242,236,221,0.08); }
 .dst-panel{ background:var(--ink-bg-2); border-radius:16px; padding:1rem; }
 .dst-panel-label{ font-size:0.75rem; color:var(--cream-soft); }
 .dst-avatar{ width:64px; height:64px; border-radius:50%; overflow:hidden; background:var(--brass); color:var(--ink-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; border:2px solid var(--brass); }
@@ -231,8 +234,8 @@ function Modal({ title, onClose, children }) {
       onClick={onClose}
     >
       <div
-        className="dst-card w-full rounded-2xl p-5"
-        style={{ width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto', borderRadius: '1rem', padding: '1.25rem' }}
+        className="dst-sheet w-full"
+        style={{ width: '100%', maxWidth: '480px', maxHeight: '88dvh', overflowY: 'auto', borderRadius: '1rem', padding: '1.25rem' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -249,9 +252,9 @@ function Modal({ title, onClose, children }) {
 
 function WelcomeCard({ onAdd }) {
   return (
-    <div className="dst-card p-6 rounded-2xl text-center">
+    <div className="dst-panel text-center" style={{ padding: '1.5rem' }}>
       <div className="dst-display text-xl font-semibold mb-2">Velkommen til kennelboken</div>
-      <div className="text-sm mb-4" style={{ color: 'var(--ink-soft)' }}>
+      <div className="text-sm mb-4" style={{ color: 'var(--cream-soft)' }}>
         Legg til hunden din for å begynne å spore kommende utstillinger, resultater og mål som å bli champion.
       </div>
       <button className="dst-btn-primary" onClick={onAdd}>Legg til hunden</button>
@@ -876,7 +879,7 @@ function ImportForm({ onImport, onCancel }) {
     <div className="space-y-3">
       <div className="text-sm font-semibold">Last opp backup-fil</div>
       <div
-        className="dst-card p-4 rounded-xl text-center cursor-pointer"
+        className="dst-panel text-center cursor-pointer"
         style={{ border: '2px dashed var(--line-dark)' }}
         onClick={() => fileRef.current.click()}
       >
