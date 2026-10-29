@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
 
 const CERT_TYPES = [
   { code: 'CERT', short: 'CERT', full: 'CERT (Certificate)' },
+  { code: 'STORCERT', short: 'STOR', full: 'Storcert (CERT på stor utstilling)' },
   { code: 'RCERT', short: 'RES', full: 'Reserve Certificate (R-CERT)' },
   { code: 'JUNCERT', short: 'JUN', full: 'Junior/Veteran Certificate (JUN/VET CERT)' },
   { code: 'CACIB', short: 'CACIB', full: 'CACIB' },
@@ -19,7 +20,7 @@ const CERT_TYPES = [
   { code: 'BIS', short: 'BIS', full: 'Best in Show (BIS)' },
 ];
 
-const DEFAULT_CERTS = { CERT: false, RCERT: false, JUNCERT: false, CACIB: false, CACIBJ: false, CACIT: false, BIR: false, BIM: false, BIS: false };
+const DEFAULT_CERTS = { CERT: false, STORCERT: false, RCERT: false, JUNCERT: false, CACIB: false, CACIBJ: false, CACIT: false, BIR: false, BIM: false, BIS: false };
 
 const CLASSES = ['Baby (4-6 mnd)', 'Valp (6-9 mnd)', 'Junior (9-18 mnd)', 'Unghund (15-24 mnd)', 'Åpen', 'Bruk', 'Champion', 'Veteran', 'Annet'];
 
@@ -30,15 +31,18 @@ const PLACEMENTS = ['1', '2', '3', '4', '-'];
 const GOAL_TEMPLATES = [
   {
     key: 'nuch',
-    title: 'Norwegian Champion (N UCH)',
+    title: 'Norsk Utstillingschampion (N UCH)',
     trackedCert: 'CERT',
     targetCount: 3,
     trackDistinctJudges: true,
-    minDistinctJudges: 2,
+    minDistinctJudges: 3,
     trackDistinctCountries: false,
     minDistinctCountries: 1,
+    requiredStorcerts: 1,
+    minAgeMonthsForOne: 24,
+    onlyCountry: 'Norway',
     description:
-      "Needs 3 CKs under at least 2 different judges, with at least 1 year and 1 day between the first and last CK. The dog must be at least 24 months old when the final CK is awarded. Check the exact requirements for this breed with NKK.",
+      'Tre CERT på utstilling i Norge under tre ulike dommere. Minst ett må være storcert, og minst ett må være vunnet ved fylte 24 måneder.',
   },
   {
     key: 'cib',
@@ -117,6 +121,10 @@ const CSS = `
 .dst-btn-ghost.danger{ color:#E39A80; }
 .dst-notes{ color:var(--cream-soft); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-wrap; }
 .dst-notes.open{ display:block; -webkit-line-clamp:unset; }
+.dst-panel .dst-stamp.earned{ color:var(--brass); background:rgba(201,162,39,0.14); }
+.dst-panel .dst-stamp.empty{ border-color:var(--line); color:var(--cream-soft); opacity:0.7; }
+.dst-check{ width:18px; height:18px; border-radius:50%; border:1.5px solid var(--cream-soft); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; opacity:0.7; }
+.dst-check.ok{ background:var(--brass); border-color:var(--brass); color:var(--ink-bg); opacity:1; }
 .dst-nav{ position:fixed; left:0; right:0; bottom:0; background:var(--ink-bg); border-top:1px solid var(--line); z-index:20; padding-bottom:env(safe-area-inset-bottom); }
 .dst-nav-inner{ max-width:640px; margin:0 auto; display:flex; justify-content:space-around; padding:0.4rem 0.5rem; }
 .dst-nav button{ background:none; border:none; color:var(--cream-soft); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:0.7rem; font-weight:600; padding:0.35rem 0.9rem; cursor:pointer; font-family:'Work Sans',sans-serif; }
@@ -161,21 +169,42 @@ function gradeColor(q) {
   return 'var(--ink)';
 }
 
-function computeGoalProgress(goal, dogShows) {
-  const qualifying = dogShows.filter(
-    (s) => s.status === 'done' && s.certs && s.certs[goal.trackedCert]
-  );
+function monthsAt(birthStr, dateStr) {
+  const b = new Date(birthStr + 'T00:00:00');
+  const d = new Date(dateStr + 'T00:00:00');
+  let months = (d.getFullYear() - b.getFullYear()) * 12 + (d.getMonth() - b.getMonth());
+  if (d.getDate() < b.getDate()) months -= 1;
+  return months;
+}
+
+function computeGoalProgress(goal, dogShows, dog) {
+  const inCountry = (s) => !goal.onlyCountry || (s.country || 'Norway') === goal.onlyCountry;
+  const counts = (s) => s.certs && (s.certs[goal.trackedCert] || (goal.trackedCert === 'CERT' && (s.certs.STORCERT || s.certs.CACIB)));
+  const qualifying = dogShows.filter((s) => s.status === 'done' && counts(s) && inCountry(s));
   const count = qualifying.length;
   const judgeSet = new Set(qualifying.map((s) => (s.judge || '').trim()).filter(Boolean));
   const countrySet = new Set(qualifying.map((s) => (s.country || '').trim()).filter(Boolean));
-  const meetsCount = count >= goal.targetCount;
-  const meetsJudges = !goal.trackDistinctJudges || judgeSet.size >= goal.minDistinctJudges;
-  const meetsCountries = !goal.trackDistinctCountries || countrySet.size >= goal.minDistinctCountries;
+  const storcertCount = qualifying.filter((s) => s.certs.STORCERT || s.certs.CACIB).length;
+  const needStorcert = goal.requiredStorcerts || 0;
+  const needAge = goal.minAgeMonthsForOne || 0;
+  const birth = dog && dog.birthDate;
+  const ageOk = !needAge || !birth || qualifying.some((s) => monthsAt(birth, s.date) >= needAge);
+
+  const missing = [];
+  if (count < goal.targetCount) missing.push(`${goal.targetCount - count} ${goal.trackedCert} til`);
+  if (needStorcert && storcertCount < needStorcert) missing.push('storcert');
+  if (goal.trackDistinctJudges && judgeSet.size < goal.minDistinctJudges) missing.push('flere ulike dommere');
+  if (goal.trackDistinctCountries && countrySet.size < goal.minDistinctCountries) missing.push('flere ulike land');
+  if (!ageOk) missing.push(`cert etter ${needAge} mnd`);
+
   return {
     count,
     judgeCount: judgeSet.size,
     countryCount: countrySet.size,
-    complete: meetsCount && meetsJudges && meetsCountries,
+    storcertCount,
+    ageOk,
+    missing,
+    complete: missing.length === 0,
   };
 }
 
@@ -324,38 +353,54 @@ function UpcomingCard({ show, onEdit, onDelete, onLogResult }) {
 }
 
 function GoalCard({ goal, progress, onEdit, onDelete }) {
+  const items = [
+    { ok: progress.count >= goal.targetCount, text: `${goal.targetCount} ${goal.trackedCert}`, detail: `${progress.count} av ${goal.targetCount}` },
+  ];
+  if (goal.requiredStorcerts) {
+    items.push({
+      ok: progress.storcertCount >= goal.requiredStorcerts,
+      text: goal.requiredStorcerts === 1 ? 'Minst ett storcert' : `Minst ${goal.requiredStorcerts} storcert`,
+      detail: `${progress.storcertCount} av ${goal.requiredStorcerts}`,
+    });
+  }
+  if (goal.trackDistinctJudges) {
+    items.push({ ok: progress.judgeCount >= goal.minDistinctJudges, text: `${goal.minDistinctJudges} ulike dommere`, detail: `${progress.judgeCount} av ${goal.minDistinctJudges}` });
+  }
+  if (goal.trackDistinctCountries) {
+    items.push({ ok: progress.countryCount >= goal.minDistinctCountries, text: `${goal.minDistinctCountries} ulike land`, detail: `${progress.countryCount} av ${goal.minDistinctCountries}` });
+  }
+  if (goal.minAgeMonthsForOne) {
+    items.push({ ok: progress.ageOk, text: `Ett ${goal.trackedCert} ved fylte ${goal.minAgeMonthsForOne} mnd`, detail: progress.ageOk ? 'Ja' : 'Ikke ennå' });
+  }
   return (
-    <div className="dst-card p-4 rounded-2xl mb-3">
+    <div className="dst-panel">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="dst-display text-lg font-semibold">{goal.title}</div>
-          {goal.description && (
-            <div className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>{goal.description}</div>
-          )}
-        </div>
-        {progress.complete && (
-          <div className="dst-mono text-xs font-bold flex items-center gap-1 flex-shrink-0" style={{ color: 'var(--sage)' }}>
-            <Trophy size={15} />Oppnådd
-          </div>
-        )}
+        <div className="dst-display text-lg font-semibold" style={{ minWidth: 0 }}>{goal.title}</div>
+        {progress.complete && <span className="dst-badge brass flex-shrink-0">Oppnådd</span>}
       </div>
+      {goal.description && (
+        <div className="text-sm mt-1" style={{ color: 'var(--cream-soft)' }}>{goal.description}</div>
+      )}
       <div className="flex items-center gap-1.5 mt-3 flex-wrap">
         {Array.from({ length: goal.targetCount }).map((_, i) => (
           <CertStamp key={i} code={goal.trackedCert} earned={i < progress.count} size="sm" />
         ))}
-        <span className="dst-mono text-xs ml-1" style={{ color: 'var(--ink-soft)' }}>
-          {progress.count} / {goal.targetCount} {goal.trackedCert}
-        </span>
       </div>
-      {(goal.trackDistinctJudges || goal.trackDistinctCountries) && (
-        <div className="dst-mono text-xs mt-2 flex gap-3" style={{ color: 'var(--ink-soft)' }}>
-          {goal.trackDistinctJudges && <span>Dommere {progress.judgeCount}/{goal.minDistinctJudges}</span>}
-          {goal.trackDistinctCountries && <span>Land {progress.countryCount}/{goal.minDistinctCountries}</span>}
-        </div>
-      )}
-      <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--line-dark)' }}>
-        <button onClick={onEdit} className="dst-btn-light"><Pencil size={13} />Rediger</button>
-        <button onClick={onDelete} className="dst-btn-light danger"><Trash2 size={13} />Slett</button>
+      <div className="mt-3 space-y-2">
+        {items.map((item) => (
+          <div key={item.text} className="flex items-center gap-2 text-sm">
+            <span className={`dst-check ${item.ok ? 'ok' : ''}`}>{item.ok && <Check size={12} strokeWidth={3} />}</span>
+            <span className="flex-1" style={{ color: item.ok ? 'var(--cream)' : 'var(--cream-soft)' }}>{item.text}</span>
+            <span className="dst-panel-label">{item.detail}</span>
+          </div>
+        ))}
+        {goal.onlyCountry === 'Norway' && (
+          <div className="dst-panel-label">Teller bare utstillinger i Norge</div>
+        )}
+      </div>
+      <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--line)' }}>
+        <button onClick={onEdit} className="dst-btn-ghost"><Pencil size={14} />Rediger</button>
+        <button onClick={onDelete} className="dst-btn-ghost danger"><Trash2 size={14} />Slett</button>
       </div>
     </div>
   );
@@ -571,7 +616,7 @@ function GoalForm({ initial, onSave, onCancel }) {
             style={{ display: 'block', width: '100%', textAlign: 'left', borderRadius: '12px', padding: '0.75rem', marginBottom: '0.5rem' }}
             onClick={() => setForm({ ...t, certs: undefined })}
           >
-            <div className="font-bold">{t.title || 'Custom goal'}</div>
+            <div className="font-bold">{t.title || 'Eget mål'}</div>
             {t.description && (
               <div className="text-xs mt-1 font-normal" style={{ color: 'var(--ink-soft)' }}>{t.description}</div>
             )}
@@ -605,7 +650,7 @@ function GoalForm({ initial, onSave, onCancel }) {
       </div>
       <label className="dst-chip" style={{ display: 'flex', width: 'fit-content' }}>
         <input type="checkbox" checked={form.trackDistinctJudges} onChange={(e) => set('trackDistinctJudges', e.target.checked)} style={{ marginRight: '0.4rem' }} />
-        Require different judges
+        Krev ulike dommere
       </label>
       {form.trackDistinctJudges && (
         <div>
@@ -618,7 +663,7 @@ function GoalForm({ initial, onSave, onCancel }) {
       )}
       <label className="dst-chip" style={{ display: 'flex', width: 'fit-content' }}>
         <input type="checkbox" checked={form.trackDistinctCountries} onChange={(e) => set('trackDistinctCountries', e.target.checked)} style={{ marginRight: '0.4rem' }} />
-        Require different countries
+        Krev ulike land
       </label>
       {form.trackDistinctCountries && (
         <div>
@@ -629,6 +674,26 @@ function GoalForm({ initial, onSave, onCancel }) {
           />
         </div>
       )}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="dst-label">Antall storcert</label>
+          <input
+            type="number" min="0" className="dst-input" value={form.requiredStorcerts || 0}
+            onChange={(e) => set('requiredStorcerts', Math.max(0, parseInt(e.target.value, 10) || 0))}
+          />
+        </div>
+        <div>
+          <label className="dst-label">Ett cert ved alder (mnd)</label>
+          <input
+            type="number" min="0" className="dst-input" value={form.minAgeMonthsForOne || 0}
+            onChange={(e) => set('minAgeMonthsForOne', Math.max(0, parseInt(e.target.value, 10) || 0))}
+          />
+        </div>
+      </div>
+      <label className="dst-chip" style={{ display: 'flex', width: 'fit-content' }}>
+        <input type="checkbox" checked={form.onlyCountry === 'Norway'} onChange={(e) => set('onlyCountry', e.target.checked ? 'Norway' : '')} style={{ marginRight: '0.4rem' }} />
+        Teller bare utstillinger i Norge
+      </label>
       <div>
         <label className="dst-label">Notater / krav</label>
         <textarea className="dst-textarea" rows={3} value={form.description} onChange={(e) => set('description', e.target.value)} />
@@ -931,7 +996,7 @@ function Dashboard({ dog, dogShows, dogGoals, onGoToShows, onGoToGoals }) {
       </div>
 
       {dogGoals.slice(0, 2).map((goal) => {
-        const progress = computeGoalProgress(goal, dogShows);
+        const progress = computeGoalProgress(goal, dogShows, dog);
         const pct = Math.min(100, Math.round((progress.count / Math.max(1, goal.targetCount)) * 100));
         return (
           <button
@@ -943,7 +1008,7 @@ function Dashboard({ dog, dogShows, dogGoals, onGoToShows, onGoToGoals }) {
             <div className="flex justify-between gap-3 mb-2">
               <span className="dst-panel-label" style={{ minWidth: 0 }}>Mål: {goal.title}</span>
               <span className="dst-panel-label flex-shrink-0">
-                {progress.complete ? 'Oppnådd' : `${progress.count} av ${goal.targetCount} ${goal.trackedCert}`}
+                {progress.complete ? 'Oppnådd' : progress.count >= goal.targetCount ? `Mangler ${progress.missing[0]}` : `${progress.count} av ${goal.targetCount} ${goal.trackedCert}`}
               </span>
             </div>
             <div className="dst-bar"><div style={{ width: `${pct}%` }} /></div>
@@ -1036,18 +1101,20 @@ function ShowsTab({ dog, dogShows, onAdd, onEdit, onDelete, onLogResult, onImpor
   );
 }
 
-function GoalsTab({ dogShows, dogGoals, onAdd, onEdit, onDelete }) {
+function GoalsTab({ dog, dogShows, dogGoals, onAdd, onEdit, onDelete }) {
   return (
     <div>
-      <div className="flex justify-end mb-3">
-        <button className="dst-btn-secondary" onClick={onAdd}><Plus size={15} />Legg til mål</button>
-      </div>
+      <button className="dst-btn-primary w-full flex items-center justify-center gap-1.5 mb-4" onClick={onAdd}>
+        <Plus size={16} />Legg til mål
+      </button>
       {dogGoals.length === 0 ? (
         <EmptyHint text="Ingen mål ennå. Sett et mål, som å bli champion, for å spore fremgangen." />
       ) : (
-        dogGoals.map((g) => (
-          <GoalCard key={g.id} goal={g} progress={computeGoalProgress(g, dogShows)} onEdit={() => onEdit(g)} onDelete={() => onDelete(g)} />
-        ))
+        <div className="space-y-3">
+          {dogGoals.map((g) => (
+            <GoalCard key={g.id} goal={g} progress={computeGoalProgress(g, dogShows, dog)} onEdit={() => onEdit(g)} onDelete={() => onDelete(g)} />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -1378,7 +1445,7 @@ export default function App() {
               />
             )}
             {tab === 'goals' && (
-              <GoalsTab dogShows={dogShows} dogGoals={dogGoals} onAdd={openAddGoal} onEdit={openEditGoal} onDelete={deleteGoal} />
+              <GoalsTab dog={activeDog} dogShows={dogShows} dogGoals={dogGoals} onAdd={openAddGoal} onEdit={openEditGoal} onDelete={deleteGoal} />
             )}
             {tab === 'dogs' && (
               <DogsTab
