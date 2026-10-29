@@ -125,6 +125,7 @@ const CSS = `
 .dst-panel .dst-stamp.empty{ border-color:var(--line); color:var(--cream-soft); opacity:0.7; }
 .dst-check{ width:18px; height:18px; border-radius:50%; border:1.5px solid var(--cream-soft); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; opacity:0.7; }
 .dst-check.ok{ background:var(--brass); border-color:var(--brass); color:var(--ink-bg); opacity:1; }
+.dst-stat{ background:rgba(242,236,221,0.06); border-radius:12px; padding:0.6rem 0.4rem; text-align:center; }
 .dst-nav{ position:fixed; left:0; right:0; bottom:0; background:var(--ink-bg); border-top:1px solid var(--line); z-index:20; padding-bottom:env(safe-area-inset-bottom); }
 .dst-nav-inner{ max-width:640px; margin:0 auto; display:flex; justify-content:space-around; padding:0.4rem 0.5rem; }
 .dst-nav button{ background:none; border:none; color:var(--cream-soft); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:0.7rem; font-weight:600; padding:0.35rem 0.9rem; cursor:pointer; font-family:'Work Sans',sans-serif; }
@@ -950,7 +951,7 @@ function Dashboard({ dog, dogShows, dogGoals, onGoToShows, onGoToGoals }) {
   const latest = past[0];
   const older = past.slice(1, 3);
   const days = nextShow ? daysUntil(nextShow.date) : null;
-  const photo = /laban/i.test(dog.name || '') ? `${import.meta.env.BASE_URL}laban.jpg` : null;
+  const photo = dogPhoto(dog);
   const details = [dog.breed, ageLabel(dog.birthDate)].filter(Boolean).join(' · ');
 
   return (
@@ -1120,46 +1121,69 @@ function GoalsTab({ dog, dogShows, dogGoals, onAdd, onEdit, onDelete }) {
   );
 }
 
+const SEX_NO = { Male: 'Hann', Female: 'Tispe' };
+
+function dogPhoto(dog) {
+  return /laban/i.test(dog.name || '') ? `${import.meta.env.BASE_URL}laban.jpg` : null;
+}
+
 function DogsTab({ dogs, shows, goals, activeDogId, onSelect, onAdd, onEdit, onDelete }) {
   return (
     <div>
-      <div className="flex justify-end mb-3">
-        <button className="dst-btn-secondary" onClick={onAdd}><Plus size={15} />Legg til hund</button>
-      </div>
-      {dogs.map((dog) => {
-        const dogShows = shows.filter((s) => s.dogId === dog.id);
-        const certCount = dogShows.filter((s) => s.status === 'done' && s.certs && s.certs.CERT).length;
-        const dogGoals = goals.filter((g) => g.dogId === dog.id);
-        const goalsCompleted = dogGoals.filter((g) => computeGoalProgress(g, dogShows).complete).length;
-        const isActive = dog.id === activeDogId;
-        return (
-          <div
-            key={dog.id}
-            className="dst-card p-4 rounded-2xl mb-3"
-            style={{ outline: isActive ? '2px solid var(--brass)' : 'none', outlineOffset: '2px' }}
-          >
-            <div className="flex justify-between items-start gap-2">
-              <div>
-                <div className="dst-display text-lg font-semibold">{dog.name}</div>
-                <div className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-                  {dog.breed}{dog.sex ? ` \u00B7 ${dog.sex}` : ''}
+      <button className="dst-btn-primary w-full flex items-center justify-center gap-1.5 mb-4" onClick={onAdd}>
+        <Plus size={16} />Legg til hund
+      </button>
+      <div className="space-y-3">
+        {dogs.map((dog) => {
+          const dogShows = shows.filter((s) => s.dogId === dog.id);
+          const doneShows = dogShows.filter((s) => s.status === 'done');
+          const certCount = doneShows.filter((s) => s.certs && (s.certs.CERT || s.certs.STORCERT || s.certs.CACIB)).length;
+          const dogGoals = goals.filter((g) => g.dogId === dog.id);
+          const goalsCompleted = dogGoals.filter((g) => computeGoalProgress(g, dogShows, dog).complete).length;
+          const isActive = dog.id === activeDogId;
+          const photo = dogPhoto(dog);
+          const details = [dog.breed, SEX_NO[dog.sex] || dog.sex, ageLabel(dog.birthDate)].filter(Boolean).join(' · ');
+          return (
+            <div
+              key={dog.id}
+              className="dst-panel"
+              style={{ border: isActive ? '1.5px solid var(--brass)' : '1.5px solid transparent' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="dst-avatar" style={{ width: 56, height: 56 }}>
+                  {photo ? <img src={photo} alt={dog.name} /> : <PawPrint size={26} />}
                 </div>
-                {dog.regName && <div className="dst-mono text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{dog.regName}</div>}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="dst-display text-lg font-semibold">{dog.name}</div>
+                  {details && <div className="text-sm" style={{ color: 'var(--cream-soft)' }}>{details}</div>}
+                </div>
+                {isActive ? (
+                  <span className="dst-badge brass flex-shrink-0">Valgt</span>
+                ) : (
+                  <button className="dst-btn-brass flex-shrink-0" onClick={() => onSelect(dog.id)}>Velg</button>
+                )}
               </div>
-              {!isActive && <button className="dst-btn-light" onClick={() => onSelect(dog.id)}>Velg</button>}
+              {(dog.regName || dog.regNumber || dog.birthDate) && (
+                <div className="mt-3 text-xs space-y-0.5" style={{ color: 'var(--cream-soft)' }}>
+                  {dog.regName && <div>{dog.regName}</div>}
+                  {dog.regNumber && <div className="dst-mono">{dog.regNumber}</div>}
+                  {dog.birthDate && <div>Født {formatDate(dog.birthDate)}</div>}
+                </div>
+              )}
+              {dog.notes && <div className="text-sm mt-2" style={{ color: 'var(--cream-soft)' }}>{dog.notes}</div>}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                <div className="dst-stat"><div className="dst-display font-semibold" style={{ fontSize: '1.3rem' }}>{doneShows.length}</div><div className="dst-panel-label">Utstillinger</div></div>
+                <div className="dst-stat"><div className="dst-display font-semibold" style={{ fontSize: '1.3rem' }}>{certCount}</div><div className="dst-panel-label">CERT</div></div>
+                <div className="dst-stat"><div className="dst-display font-semibold" style={{ fontSize: '1.3rem' }}>{goalsCompleted}/{dogGoals.length}</div><div className="dst-panel-label">Mål nådd</div></div>
+              </div>
+              <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--line)' }}>
+                <button onClick={() => onEdit(dog)} className="dst-btn-ghost"><Pencil size={14} />Rediger</button>
+                <button onClick={() => onDelete(dog)} className="dst-btn-ghost danger"><Trash2 size={14} />Slett</button>
+              </div>
             </div>
-            <div className="flex gap-4 mt-3 dst-mono text-xs" style={{ color: 'var(--ink-soft)' }}>
-              <div>{dogShows.length} utstillinger</div>
-              <div>{certCount} CERT</div>
-              <div>{goalsCompleted}/{dogGoals.length} mål nådd</div>
-            </div>
-            <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--line-dark)' }}>
-              <button onClick={() => onEdit(dog)} className="dst-btn-light"><Pencil size={13} />Rediger</button>
-              <button onClick={() => onDelete(dog)} className="dst-btn-light danger"><Trash2 size={13} />Slett</button>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
